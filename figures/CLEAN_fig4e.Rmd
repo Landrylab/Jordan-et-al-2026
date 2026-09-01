@@ -1,0 +1,64 @@
+
+
+```{r}
+
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(glue)
+library(rstatix)
+library(ggpubr)
+```
+
+```{r}
+
+#Read proper data
+stats<-read.csv("../../results/growth_curve_stats_output.csv")%>%
+  filter(stress == "2 µg/mL voriconazole")
+
+
+colour_wt<-"#4c7c2d"
+colour_mut<-"#9ad873"
+```
+
+
+
+```{r}
+
+
+
+
+#Calculate t-test to add to plot
+
+pval<-stats%>%
+  rstatix::t_test(formula=auc~plasmid)%>%
+  add_significance()%>%
+  add_xy_position()
+
+
+#make plot
+
+e<-stats%>%
+  mutate(plasmid = factor(plasmid, levels = c("pRS31N-ScerERG11", "pRS31N-ScerERG11 K151R"), labels = c("ScERG11 WT", "ScERG11 K151R")))%>%
+  ggplot(aes(x=plasmid, y=auc, fill=plasmid))+
+  geom_boxplot()+
+  geom_jitter()+
+  stat_pvalue_manual(data=pval, label="p = {p}")+
+  scale_fill_manual(values = c(colour_wt, colour_mut))+
+  scale_x_discrete(labels=c("ScERG11\nWT", "ScERG11\nK151R"))+
+  scale_y_continuous(expand=expansion(mult=c(0.05,0.065)))+
+  theme_bw()+
+  theme(legend.position="none",
+        axis.text=element_text(colour="black"),
+        panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank(),
+        axis.text.x = element_text(angle=45, vjust=1, hjust=1))+
+  labs(x=NULL,
+       y="AUC (Growth Curves)")
+  
+#save plot
+
+ggsave(filename="fig_4e.svg", e, width= 5, height=7, scale=0.5)
+
+```
+

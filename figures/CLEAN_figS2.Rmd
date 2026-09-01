@@ -1,0 +1,164 @@
+
+
+```{r}
+
+library(ggplot2)
+library(dplyr)
+library(cowplot)
+library(gghighlight)
+
+
+data<-read.csv("../../../results/growth_curve_output.csv")
+
+
+pal<-c("#404040",
+       "#4c7c2d",
+       "#35979e",
+       "#edac0f",
+       "#f26e33",
+       "#75da92",
+       "#fe7aa8",
+       "#adc4f5",
+       "#ecd3f8")   
+
+
+```
+
+
+```{r}
+
+a_data<-data%>%
+  filter(strain == "▲erg3" & temperature == 30 & stress == "0.005% SDS")
+
+
+
+target_order<-c("pRS315", "pRS315-ScerERG3", "pRS315-CalbERG3", "pRS315-CaurERG3", "pRS315-NglaERG3", "pRS315-CparERG3", "pRS315-CtroERG3")
+new_labels<-c("Empty plasmid", "ScERG3", "CalERG3", "CauERG3", "NgERG3", "CpERG3", "CtERG3")
+a_data$plasmid<-factor(a_data$plasmid,
+                       levels = target_order,
+                       labels = new_labels)
+
+a<-a_data%>%ggplot(aes(x=Time, y=absorbance))+
+  geom_smooth(method="gam",                      
+              formula = y ~ s(x, bs = "cs"),     
+              aes(fill=plasmid, colour=plasmid))+
+  scale_color_manual(values = pal[1:7])+
+  scale_fill_manual(values = pal[1:7])+
+  scale_x_continuous(breaks=seq(from=0, to=48, by=12), expand=c(0,0))+
+  guides(fill=guide_legend(override.aes = list(alpha=0.25)))+
+  gghighlight()+
+  facet_wrap(vars(plasmid))+
+  theme_classic()+
+  theme(panel.grid.major = element_line(colour="grey90"),
+        strip.background = element_rect(colour= "white"), 
+        strip.text = element_text(face = "italic"),
+        axis.text.x = element_text(angle=90, vjust=0.5))+
+  labs(title = "ERG3 orthologs",
+       subtitle = "0.005% SDS",
+       x="Time (h)",
+       y="OD/mL")
+  
+
+
+```
+
+```{r}
+
+b_data<-data%>%
+  filter(strain == "▲erg6" & temperature == 30 & stress == "0.005% SDS")
+
+target_order<-c("pRS315", "pRS315-ScerERG6", "pRS315-CalbERG6", "pRS315-CaurERG6", "pRS315-NglaERG6", "pRS315-CparERG6", "pRS315-CtroERG6")
+new_labels<-c("Empty plasmid", "ScERG6", "CalERG6", "CauERG6", "NgERG6", "CpERG6", "CtERG6")
+b_data$plasmid<-factor(b_data$plasmid,
+                       levels = target_order,
+                       labels = new_labels)
+
+
+b<-b_data%>%ggplot(aes(x=Time, y=absorbance))+
+  geom_smooth(method="gam",                      
+              formula = y ~ s(x, bs = "cs"),     
+              aes(fill=plasmid, colour=plasmid))+
+  scale_color_manual(values = pal[1:7])+
+  scale_fill_manual(values = pal[1:7])+
+  scale_x_continuous(breaks=seq(from=0, to=48, by=12), expand=c(0,0))+
+  guides(fill=guide_legend(override.aes = list(alpha=0.25)))+
+  gghighlight()+
+  facet_wrap(vars(plasmid))+
+  theme_classic()+
+  theme(panel.grid.major = element_line(colour="grey90"),
+        strip.background = element_rect(colour= "white"), 
+        strip.text = element_text(face = "italic"),
+        axis.text.x = element_text(angle=90, vjust=0.5))+
+  labs(title = "ERG6 orthologs",
+       subtitle = "0.005% SDS",
+       x="Time (h)",
+       y="OD/mL")
+
+
+```
+
+
+
+
+```{r}
+
+
+c_data<-data%>%
+  filter(strain == "Tet-O7-ERG11" & temperature == 30 & doxycycline == "10 µg/mL" & stress == "None")
+
+
+target_order<-c("pRS31N", "pRS31N-ScerERG11", "pRS31N-CalbERG11", "pRS31N-CaurERG11", "pRS31N-NglaERG11", "pRS31N-CparERG11", "pRS31N-CtroERG11", "pRS31N-AfumCYP51A", "pRS31N-AfumCYP51B" )
+new_labels<-c("Empty plasmid", "ScERG11", "CalERG11", "CauERG11", "NgERG11", "CpERG11", "CtERG11", "AfCYP51A", "AfCYP51B")
+c_data$plasmid<-factor(c_data$plasmid,
+                       levels = target_order,
+                       labels = new_labels)
+
+
+c<-c_data%>%ggplot(aes(x=Time, y=absorbance))+
+  geom_smooth(method="gam",                      
+              formula = y ~ s(x, bs = "cs"),     
+              aes(fill=plasmid, colour=plasmid))+
+  scale_color_manual(values = pal[1:9])+
+  scale_fill_manual(values = pal[1:9])+
+  scale_x_continuous(breaks=seq(from=0, to=48, by=12), expand=c(0,0))+
+  guides(fill=guide_legend(override.aes = list(alpha=0.25)))+
+  gghighlight()+
+  facet_wrap(vars(plasmid))+
+  theme_classic()+
+  theme(panel.grid.major = element_line(colour="grey90"),
+        strip.background = element_rect(colour= "white"), 
+        strip.text = element_text(face = "italic"),
+        axis.text.x = element_text(angle=90, vjust=0.5))+
+  labs(title = "ERG11 orthologs",
+       subtitle = "10 µg/mL Doxycycline",
+       x="Time (h)",
+       y="OD/mL")
+
+c
+
+```
+
+
+```{r}
+
+
+
+
+assembled<-plot_grid(a+theme(legend.position = "none"),
+          b+theme(legend.position = "none"),
+          c+theme(legend.position = "none"),
+          nrow=2, ncol=2,
+          labels = "auto")
+
+
+
+assembled
+
+
+#write to svg to remove italic from "Empty plasmid"
+save_plot("figS2_unmodified.svg", plot=assembled, dpi=300, bg="white", base_width = 8, base_height = 8)
+
+
+
+```
+

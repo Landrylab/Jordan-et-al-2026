@@ -1,0 +1,178 @@
+
+
+```{r}
+
+library(ggplot2)
+library(dplyr)
+library(tibble)
+library(cowplot)
+library(rstatix)
+library(agricolae)
+data<-read.csv("../../results/growth_curve_stats_output.csv")
+
+
+pal<-c("#404040",
+       "#4c7c2d",
+       "#35979e",
+       "#edac0f",
+       "#f26e33",
+       "#75da92",
+       "#fe7aa8",
+       "#adc4f5",
+       "#ecd3f8")   
+
+
+
+darker_colors <- c("#262626", "#2e4a1b", "#205b5f", "#8e6709", "#91421f", 
+                   "#468358", "#984965", "#687693", "#8e7f95")
+
+plasmid_order<-c("Empty plasmid",
+                 "S. cerevisiae",
+                 "C. albicans",
+                 "C. auris",
+                 "N. glabratus",
+                 "C. parapsilosis",
+                 "C. tropicalis",
+                 "A. fumigatus CYP51A",
+                 "A. fumigatus CYP51B")
+
+
+mod_data<-data%>%
+  mutate(expressed = case_when(plasmid %in% c("pRS315", "pRS31N") ~ "Empty plasmid",
+                               plasmid %in% c("pRS315-ScerERG3", "pRS315-ScerERG6", "pRS31N-ScerERG11") ~ "S. cerevisiae",
+                               plasmid %in% c("pRS315-CalbERG3", "pRS315-CalbERG6", "pRS31N-CalbERG11") ~ "C. albicans",
+                               plasmid %in% c("pRS315-CaurERG3", "pRS315-CaurERG6", "pRS31N-CaurERG11") ~ "C. auris",
+                               plasmid %in% c("pRS315-NglaERG3", "pRS315-NglaERG6", "pRS31N-NglaERG11") ~ "N. glabratus",
+                               plasmid %in% c("pRS315-CparERG3", "pRS315-CparERG6", "pRS31N-CparERG11") ~ "C. parapsilosis",
+                               plasmid %in% c("pRS315-CtroERG3", "pRS315-CtroERG6", "pRS31N-CtroERG11") ~ "C. tropicalis",
+                               plasmid %in% c("pRS31N-AfumCYP51A") ~ "A. fumigatus CYP51A",
+                               plasmid %in% c("pRS31N-AfumCYP51B") ~ "A. fumigatus CYP51B",
+                               ))%>%
+  mutate(expressed = factor(expressed, levels = plasmid_order)) %>%
+  arrange(expressed)
+
+
+```
+
+
+```{r}
+
+# ERG3 complementation plot
+
+#Filter right data
+a_data<-mod_data%>%
+  filter(strain == "▲erg3" & temperature == 30 & stress == "0.005% SDS")
+
+
+#Make plot
+
+erg3_comp<-a_data%>%
+  ggplot(aes(y=expressed, x=auc))+
+  geom_boxplot(aes(fill=expressed, colour=expressed))+
+  scale_fill_manual(values=pal[1:7])+
+  scale_colour_manual(values = darker_colors[1:7])+
+  scale_y_discrete(limits=rev(plasmid_order[1:7]), position="left")+
+  scale_x_continuous(breaks = seq(from=0, to= 50, by=10),
+                     limits = range(mod_data$auc))+
+  theme_bw()+
+  theme(axis.text.x = element_text(colour="black"),
+        axis.text.y = element_text(colour="black", face="italic"),
+        panel.grid.minor = element_blank(),
+        legend.position = "none")+
+  labs(y=NULL, x="AUC (Growth curves)")
+
+
+erg3_comp
+
+```
+
+```{r}
+
+# ERG6 complementation plot
+
+#Filter right data
+
+b_data<-mod_data%>%
+  filter(strain == "▲erg6" & temperature == 30 & stress == "0.005% SDS")
+
+
+#Make plot
+
+erg6_comp<-b_data%>%
+  ggplot(aes(y=expressed, x=auc))+
+  geom_boxplot(aes(fill=expressed, colour=expressed))+
+  scale_fill_manual(values=pal[1:7])+
+  scale_colour_manual(values = darker_colors[1:7])+
+  scale_y_discrete(limits=rev(plasmid_order[1:7]), position="left")+
+  scale_x_continuous(breaks = seq(from=0, to= 50, by=10),
+                     limits = range(mod_data$auc))+
+  theme_bw()+
+  theme(axis.text.x = element_text(colour="black"),
+        axis.text.y = element_text(colour="black", face="italic"),
+        panel.grid.minor = element_blank(),
+        legend.position = "none")+
+  labs(y=NULL, x="AUC (Growth curves)")
+
+
+erg6_comp
+
+
+
+```
+
+
+
+```{r}
+
+
+# ERG11 complementation plot
+
+#Filter right data
+c_data<-mod_data%>%
+  filter(strain == "Tet-O7-ERG11" & temperature == 30 & doxycycline == "10 µg/mL" & stress == "None")
+
+
+
+erg11_comp<-c_data%>%
+  ggplot(aes(y=expressed, x=auc))+
+  geom_boxplot(aes(fill=expressed, colour=expressed))+
+  scale_fill_manual(values=pal[1:9])+
+  scale_colour_manual(values = darker_colors[1:9])+
+  scale_y_discrete(labels=c("Afum CYP51B", "Afum CYP51A", rev(plasmid_order[1:7])), position="left",
+                   limits=rev(plasmid_order[1:9]))+
+  scale_x_continuous(breaks = seq(from=0, to= 50, by=10),
+                     limits = range(mod_data$auc))+
+  theme_bw()+
+  theme(axis.text.x = element_text(colour="black"),
+        axis.text.y = element_text(colour="black", face="italic"),
+        panel.grid.minor = element_blank(),
+        legend.position = "none")+
+  labs(y=NULL, x="AUC (Growth curves)")
+
+
+erg11_comp
+```
+
+
+```{r}
+
+
+
+
+
+
+
+save_plot(filename = "./erg3_boxplot.svg", plot=erg3_comp+
+            theme(axis.text.y = element_text(size = 12)),
+          base_width = 4, base_height = 5)
+save_plot(filename = "./erg6_boxplot.svg", plot=erg6_comp+
+            theme(axis.text.y = element_text(size = 12)),
+          base_width = 4, base_height = 5)
+save_plot(filename = "./erg11_boxplot.svg", plot=erg11_comp+
+            theme(axis.text.y = element_text(size = 12)),
+          base_width = 4, base_height = 6.24)
+
+```
+
+
+
