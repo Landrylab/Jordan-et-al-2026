@@ -1,0 +1,339 @@
+
+
+```{r}
+####Load libraries####
+library(tidyverse)
+library(glue)
+library(agricolae)
+library(rstatix)
+
+```
+
+
+
+```{r, warning=FALSE, error=FALSE}
+####Read data####
+
+############################
+#### CHANGE THESE LINES ####
+############################
+
+#Document containing what is in each well, and the absorbance measurements,
+#organised with one row per well, with columns for row, column, the plate, the strain 
+#contained, the replicate, the drug concentration or stress (variable for your experiment)
+#and any other information that differentiates the wells from one another.
+#Each well must be uniquely identified
+
+
+info<-readxl::read_xlsx("../data/plate_plan.xlsx", sheet=1)%>%
+  tidyr::unite(col="well", row, column, remove = F, sep="")
+
+plate1<-readxl::read_xlsx("../data/20250919_erg3_erg6_37C_complementation_SDS.xlsx", range="B37:CI230", col_types="numeric")
+plate2<-readxl::read_xlsx("../data/20250919_erg3_erg6_complementation_control.xlsx", range = "B26:CI219", col_types="numeric")
+plate3<-readxl::read_xlsx("../data/20250923_erg3_erg6_30_complementation_SDS.xlsx", range="B25:CI218", col_types="numeric")
+plate4<-readxl::read_xlsx("../data/20250926_erg3_erg6_30_complementation_005_0075_SDS.xlsx", range="B25:CI218", col_types="numeric")
+plate5<-readxl::read_xlsx("../data/20250926_erg3_erg6_30_complementation_01_0125_SDS.xlsx", range="B25:CI218", col_types="numeric")
+plate6<-readxl::read_xlsx("../data/2025-10-07_ERG11-complementation_data.xlsx", range ="A1:CT194" , col_types = "numeric")
+plate7<-readxl::read_xlsx("../data/2026-04-30_ScERG11_K151R_VCZ_SC.xlsx", range="A3:H190", col_types= "numeric")%>%tidyr::drop_na()
+
+
+#The name of the csv file in which the final results will be saved
+
+growth_curve_output_file<-"../results/growth_curve_output.csv"
+stats_output_file<-"../results/growth_curve_stats_output.csv"
+
+############################
+####   END OF CHANGES   ####
+############################
+
+reformat_plate<-function(df, plate_n){
+  if (!(is.data.frame(df))){stop("df must be a data frame in the environment")}
+  if(!(is.integer(as.integer(plate_n)))){stop("plate_n must be an integer")}
+  
+  formatted_plate<-df%>%
+    pivot_longer(cols = c(3:ncol(df)), names_to = "well", values_to = "absorbance")%>%
+    select(-2)%>%
+    mutate(plate=plate_n)%>%
+    mutate(Time= Time*24)
+    
+  return(formatted_plate)
+}
+
+
+plates<-ls(pattern = "^plate\\d+$")
+n<-0
+growth_data<-data.frame()
+for(i in 1:length(plates)){
+  n<-n+1
+  current_plate<-reformat_plate(get(plates[i]), n)
+  
+  growth_data<-bind_rows(growth_data, current_plate)
+  
+}
+
+
+
+
+growth_data<-growth_data%>%
+  inner_join(., info, by=c("well", "plate" ))%>%
+  mutate(well_id=paste(well, plate, sep="_"))
+
+
+
+
+rm(list=ls(pattern = "plate"), info, i, n)
+
+```
+
+
+
+```{r}
+####Visualize growth curves####
+
+
+
+view_raw_data<-function(input_df = growth_data, plate_num){
+  df<-input_df%>%
+    filter(plate==plate_num)
+  
+  strains<-paste(unique(df$strain), collapse = ", ")
+  stressors<-paste(unique(df$stress), collapse = ", ")
+  temp<-paste(unique(df$temperature), collapse = ", ")
+  dox<-paste(unique(df$doxycycline), collapse = ", ")
+  
+    plot<-ggplot(df, aes(x=Time, 
+               y=absorbance, 
+               colour=plasmid))+                #Can change drug_conc by your condition of interest, or have no colouring  
+    facet_grid(rows=vars(interaction(row)),    #Organise in a row x column grid
+               cols = vars(column))+
+    geom_line()+
+    theme_bw()+
+      labs(title=glue("Strains: {strains}, SDS: {stressors}"),
+           subtitle = glue("Temperature: {temp}, DOX: {dox}"))
+  
+  p<-print(plot)
+  
+  return(p)
+}
+
+
+for (i in 1:length(unique(growth_data$plate))){
+  view_raw_data(input_df = growth_data, plate_num = i)
+  
+  }
+
+
+
+#This traces the growth curves
+
+
+view_growth_curves<-function(input_df=growth_data, plate_num, faceting_variables="stress"){
+  
+  df<-input_df%>%
+    filter(plate == plate_num)
+  
+  strains<-paste(unique(df$strain), collapse = ", ")
+  temp<-paste(unique(df$temperature), collapse = ", ")
+  
+  
+  plot<-ggplot(df, aes(x=Time, 
+           y=absorbance, 
+           colour=plasmid))+                  #Colouring of the curves (can be changed to other factor)
+  geom_smooth(method="gam",                     #Define the fitting and smoothing,  
+              formula = y ~ s(x, bs = "cs"),    #necessary for the growth curve shape  
+              aes(fill=plasmid))+
+  facet_wrap(faceting_variables, labeller="label_both")+                          #separate by the strain (can be changed to other factor)
+  theme_bw()+
+    labs(title=glue("Strains: {strains}"),
+           subtitle = glue("Temperature: {temp}"))
+  
+  p<-print(plot)
+  
+  return(p)
+  
+}
+
+
+for (i in 1: length(unique(growth_data$plate))){
+  
+  view_growth_curves(input_df = growth_data,
+                     plate_num = i,
+                     faceting_variables = c("stress", "doxycycline", "strain"))
+  
+}
+
+
+rm(i)
+```
+
+
+```{r}
+
+#####################################################################################
+# From the raw growth curve data, we want to obtain useful and usable information.  #
+# Three important factors are the area under the curve (AUC) of the growth curve,   #
+# the maximal growth rate, and the final growth. The functions below calculate      #
+# these three values for each well, all wrapped into one single function            #
+##################################################################################### 
+
+
+####Define growth curve analysis functions####
+
+#Function to calculate the area under the curve of a growth curve
+#Calculated empirically, as here we have discrete measurements of x (no integration needed)
+trapezoid_auc<-function(x, y){
+  if(!is.numeric(x)){
+    print("x must be a numeric vector")
+    }else if(!is.numeric(y)){
+      print("y must be a numeric vector")
+      }else{
+      h<-diff(x)
+      auc<-(sum(y[-1]) + sum(y[-length(y)])) * mean(h) / 2
+      return(auc)
+      }
+} 
+
+#The master function that goes through one well at a time, and calculates AUC, max growth rate and final absorbance
+
+# Requires a data frame, and for you to tell it which column contains the
+# unique well identifier, which column contains the time of the measurement, 
+# and which column contains the absorbence
+calc_growth_stats<-function(df, well_id_col, time_col, absorbance_values_col){
+  complete_df<-data.frame()
+  #Take only one well
+  for (i in unique(df[[well_id_col]])){
+    current_data<-df%>%
+      filter({.data[[well_id_col]]}==i)
+    
+    #Calculate max growth rate
+    #Takes the median of the top 5 growth increases in between
+    # two time points (to avoid outliers)
+    max_v<-current_data%>%
+      pull(absorbance_values_col)%>%
+      diff()%>%
+      sort(decreasing=T)%>%
+      .[1:5]%>%
+      median()%>%
+      as.data.frame()%>%
+      rename(v_max=".")
+    
+    #Calculate AUC
+    auc<-trapezoid_auc(x=pull(current_data, time_col), y=pull(current_data, absorbance_values_col))%>%
+        as.data.frame()%>%
+        rename(auc=".")
+    
+    #Calculate final absorbance
+    final_abs<-current_data%>%
+      filter(!!sym(time_col) == max(current_data[, time_col]))%>%
+      dplyr::select(all_of(absorbance_values_col))%>%
+      rename(final_abs = absorbance)
+    
+    #Get the information for his well
+    id_info<-df%>%
+      filter({.data[[well_id_col]]}==i)%>%
+      dplyr::select(-c(all_of(time_col), all_of(absorbance_values_col)))%>%
+      distinct()
+    
+    #Make data frame row of calculated values + info
+    current_data_completed<-bind_cols(id_info, max_v, auc, final_abs)
+    
+    #Add info to a common dataframe
+    complete_df<-bind_rows(complete_df, current_data_completed)
+    
+  }
+  
+  return(complete_df)
+  
+}
+
+```
+
+
+```{r}
+####Analyze growth curves####
+
+#Apply function above to the data
+growth_stats<-calc_growth_stats(growth_data, "well_id", "Time", "absorbance")
+
+```
+
+```{r}
+
+#Calculate statistics for complementation
+
+
+#ERG3
+erg3_compl_data<-growth_stats%>%
+  filter(strain == "▲erg3" & temperature == 30 & stress == "0.005% SDS")
+
+
+
+erg3_compl_anova<-aov(formula= auc~plasmid, data=erg3_compl_data)
+
+HSD.test(y=erg3_compl_anova, trt="plasmid")$group%>%
+  select(-auc)%>%
+  rownames_to_column(var="plasmid")
+
+
+#ERG6
+
+erg6_compl_data<-growth_stats%>%
+  filter(strain == "▲erg6" & temperature == 30 & stress == "0.005% SDS")
+
+
+
+erg6_compl_anova<-aov(formula= auc~plasmid, data=erg6_compl_data)
+
+HSD.test(y=erg6_compl_anova, trt="plasmid")$group%>%
+  select(-auc)%>%
+  rownames_to_column(var="plasmid")
+
+
+
+#ERG11
+
+
+erg11_compl_data<-growth_stats%>%
+  filter(strain == "Tet-O7-ERG11" & temperature == 30 & doxycycline == "10 µg/mL")
+
+
+
+erg11_compl_anova<-aov(formula= auc~plasmid, data=erg11_compl_data)
+
+HSD.test(y=erg11_compl_anova, trt="plasmid")$group%>%
+  select(-auc)%>%
+  rownames_to_column(var="plasmid")
+
+
+
+
+```
+
+
+```{r}
+# Calculate statistics for ScERG11 WT vs K151R growth
+
+growth_stats%>%
+  filter(plate == 7)%>%
+  rstatix::t_test(formula=v_max~plasmid)
+
+```
+
+
+```{r}
+
+#Then, write the growth_stats data frame to a csv file
+
+
+write.csv(x = growth_stats,
+          file = stats_output_file,
+          row.names = F)
+
+write.csv(x= growth_data,
+          file = growth_curve_output_file,
+          row.names = F)
+
+
+```
+
+
