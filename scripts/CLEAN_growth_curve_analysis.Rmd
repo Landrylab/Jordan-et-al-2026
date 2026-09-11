@@ -294,7 +294,7 @@ HSD.test(y=erg6_compl_anova, trt="plasmid")$group%>%
 
 
 erg11_compl_data<-growth_stats%>%
-  filter(strain == "Tet-O7-ERG11" & temperature == 30 & doxycycline == "10 µg/mL")
+  filter(strain == "Tet-O7-ERG11" & temperature == 30 & doxycycline == "10 µg/mL" & plate != 7)
 
 
 
