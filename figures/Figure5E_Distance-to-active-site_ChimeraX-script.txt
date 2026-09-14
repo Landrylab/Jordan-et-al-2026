@@ -1,0 +1,10 @@
+open 5v5z fromDatabase pdb format mmcif
+contacts :414 restrict :1YN dist 100 log true
+contacts :414 restrict :HEM dist 100 log true
+contacts :415 restrict :1YN dist 100 log true
+contacts :415 restrict :HEM dist 100 log true
+contacts :451 restrict :1YN dist 100 log true
+contacts :451 restrict :HEM dist 100 log true
+contacts :515 restrict :1YN dist 100 log true
+contacts :515 restrict :HEM dist 100 log true
+log save '/Users/MathildeRC/Library/Mobile Documents/com~apple~CloudDocs/Complementation paperdata_analysis/figures/Figure5E_distance-to-active-site_ChimeraX.html'
