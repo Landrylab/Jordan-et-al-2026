@@ -10,4 +10,4 @@
 
 The entirety of the raw images, transformed images (cropped and greyscaled images), plots and assembled figures and supplementary figures can be accessed on figshare at the following address : https://figshare.com/s/179c9805f571e84f1963
 
-The raw sequencing reads can be accessed on the SRA, accession number **TBD**
+The raw sequencing reads can be accessed on the SRA, accession number PRJNA1527525
